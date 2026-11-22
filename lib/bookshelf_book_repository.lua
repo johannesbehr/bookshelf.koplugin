@@ -9010,40 +9010,40 @@ function Repo.getBySource(source, filter, sort_priority, offset, limit, opts)
                     -- borrow, so ask for exactly those rather than the feed.
                     local entries = child_win
                         and OpdsWindow.slice(child_win, 0, NAV_COVER_BORROW_ITER) or {}
-                    local scanned = 0
                     local best_numbered, best_number = nil, nil
                     local first_unnumbered, first_zero = nil, nil
+                    -- Choose by metadata first, not by which image happens to
+                    -- be cached already: the lowest non-zero volume wins.
+                    -- Sonderband 0 is deliberately the last fallback.
                     for _j = 1, math.min(#entries, NAV_COVER_BORROW_ITER) do
-                        if scanned >= NAV_COVER_BORROW_SCAN then break end
                         local child = entries[_j]
-                        -- cachePath alone doesn't stat -- it just says whether
-                        -- the child has a cover URL at all. A child with none
-                        -- (a nav entry riding the same window) is ruled out for
-                        -- free and must not spend the scan budget.
-                        if OpdsCovers.cachePath(child) then
-                            scanned = scanned + 1
-                            local borrowed = OpdsCovers.cachedPath(child)
-                            if borrowed then
-                                local n = tonumber(child.series_num)
-                                -- Prefer the lowest non-zero series number.
-                                -- Sonderband 0 is only a fallback when no
-                                -- numbered regular volume has a cached cover.
-                                if n and n ~= 0 then
-                                    if best_number == nil or n < best_number then
-                                        best_number, best_numbered = n, borrowed
-                                    end
-                                elseif n == 0 then
-                                    first_zero = first_zero or borrowed
-                                else
-                                    first_unnumbered = first_unnumbered or borrowed
+                        if not child.is_opds_nav and OpdsCovers.cachePath(child) then
+                            local n = tonumber(child.series_num)
+                            if n and n ~= 0 then
+                                if best_number == nil or n < best_number then
+                                    best_number, best_numbered = n, child
                                 end
+                            elseif n == 0 then
+                                first_zero = first_zero or child
+                            else
+                                first_unnumbered = first_unnumbered or child
                             end
                         end
                     end
-                    local borrowed = best_numbered or first_unnumbered or first_zero
-                    if borrowed then
-                        rec.cover_image_path = borrowed
-                        rec.cover_borrowed = true
+                    local selected = best_numbered or first_unnumbered or first_zero
+                    if selected then
+                        local borrowed = OpdsCovers.cachedPath(selected)
+                        local selected_url = selected.opds
+                            and (selected.opds.image_url or selected.opds.thumbnail_url)
+                        -- If the nav entry has no artwork of its own, borrow the
+                        -- chosen book's URL too. That lets the normal cover queue
+                        -- download it if the cached image is not there yet.
+                        if selected_url and rec.opds
+                                and not (rec.opds.image_url or rec.opds.thumbnail_url) then
+                            rec.opds.image_url = selected_url
+                        end
+                        if borrowed then rec.cover_image_path = borrowed end
+                        if selected_url then rec.cover_borrowed = true end
                     end
                 end
             end
