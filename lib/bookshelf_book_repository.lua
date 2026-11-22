@@ -9011,6 +9011,8 @@ function Repo.getBySource(source, filter, sort_priority, offset, limit, opts)
                     local entries = child_win
                         and OpdsWindow.slice(child_win, 0, NAV_COVER_BORROW_ITER) or {}
                     local scanned = 0
+                    local best_numbered, best_number = nil, nil
+                    local first_unnumbered, first_zero = nil, nil
                     for _j = 1, math.min(#entries, NAV_COVER_BORROW_ITER) do
                         if scanned >= NAV_COVER_BORROW_SCAN then break end
                         local child = entries[_j]
@@ -9022,11 +9024,26 @@ function Repo.getBySource(source, filter, sort_priority, offset, limit, opts)
                             scanned = scanned + 1
                             local borrowed = OpdsCovers.cachedPath(child)
                             if borrowed then
-                                rec.cover_image_path = borrowed
-                                rec.cover_borrowed = true
-                                break
+                                local n = tonumber(child.series_num)
+                                -- Prefer the lowest non-zero series number.
+                                -- Sonderband 0 is only a fallback when no
+                                -- numbered regular volume has a cached cover.
+                                if n and n ~= 0 then
+                                    if best_number == nil or n < best_number then
+                                        best_number, best_numbered = n, borrowed
+                                    end
+                                elseif n == 0 then
+                                    first_zero = first_zero or borrowed
+                                else
+                                    first_unnumbered = first_unnumbered or borrowed
+                                end
                             end
                         end
+                    end
+                    local borrowed = best_numbered or first_unnumbered or first_zero
+                    if borrowed then
+                        rec.cover_image_path = borrowed
+                        rec.cover_borrowed = true
                     end
                 end
             end
