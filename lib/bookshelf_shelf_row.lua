@@ -717,16 +717,12 @@ function ShelfRow.new(opts)
             item.first_book = item.cover_image_path and item or nil
             local nav_cur = opts.selected_filepath and item.filepath
                             and item.filepath == opts.selected_filepath or false
-            -- A REGISTERED SOURCE's folder (bookshelf_sources, a Komga series)
-            -- is a real folder with artwork of its own, unlike an OPDS
-            -- catalogue link: with a cover it takes the shelf's folder style
-            -- the way a local folder does, and its badge numbers come from the
-            -- record, since there are no files on disk to count (issue 452).
+            -- A registered source folder (e.g. a Komga series) is a real
+            -- folder with artwork and count metadata of its own.
             local src_folder = item.source_nav and true or false
-            -- OPDS catalog navigation entries normally have no artwork and
-            -- remain text tiles. If the repository has attached a borrowed or
-            -- native cover, render the tile using the selected folder style
-            -- instead, so series/category tiles can display their artwork.
+            -- OPDS navigation tiles stay text-only when coverless. When a
+            -- native or borrowed cover is available, honor the selected folder
+            -- style so a multi-book series/category can display its artwork.
             local nav_mode = item.cover_image_path and group_mode
                              or StackDisplay.TEXT
             row[#row + 1] = wrap_for_title_alignment(FolderStack:new{
@@ -754,16 +750,10 @@ function ShelfRow.new(opts)
                 on_hold     = opts.on_opds_nav_hold
                               or function() return true end,
                 is_selected = nav_cur,
-                -- Coverless OPDS nav tiles resolve on a tap, so the folder tab
-                -- + repeated label are redundant over the label-placeholder;
-                -- render the bare card instead.
-                plain_if_placeholder = not (src_folder and item.cover_image_path),
-            -- NEVER an external label. The tile is always the text style now
-            -- (above), and a text card IS the name - printing it underneath
-            -- says everything twice. Asking group_mode here was the bug: the
-            -- tile was forced to text while the LABEL still followed the
-            -- chip's style, so a catalog whose chip was set to any other mode
-            -- got a text card with its own name repeated below it.
+                -- Coverless OPDS tiles keep the compact placeholder.
+                -- Covered nav tiles use their selected folder style, with
+                -- labels following that style's normal behavior.
+                plain_if_placeholder = not item.cover_image_path,
             }, StackDisplay.externalLabel(nav_mode, item.label))
         elseif item and item.kind == "author" then
             -- Author group (SeriesStack visual, author name on the band)
