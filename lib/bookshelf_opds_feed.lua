@@ -252,31 +252,55 @@ end
 --     <meta property="belongs-to-collection" id="series">Name</meta>
 --     <meta property="group-position" refines="#series">2.0</meta>
 --   OPDS 2.0: mapped onto entry._series by opds2PublicationToEntry.
+--   Calibre/Calibre-Web: calibre:series and calibre:series_index metadata,
+--     or the SERIES: Name [position] line in the OPDS content header.
 local function entrySeries(entry)
     if type(entry._series) == "table" then
         return entry._series.name, seriesNum(entry._series.position)
     end
+    local direct_name = entry["calibre:series"] or entry.calibre_series
+    local direct_pos = entry["calibre:series_index"] or entry.calibre_series_index
+    if type(direct_name) == "string" and direct_name ~= "" then
+        return direct_name, seriesNum(direct_pos)
+    end
     local metas = entry.meta
-    if type(metas) ~= "table" then return nil end
-    local name, id
-    for _i, m in ipairs(metas) do
-        if type(m) == "table" and m.property == "belongs-to-collection"
-                and type(m._text) == "string" and m._text ~= "" then
-            name, id = m._text, m.id
-            break
+    if type(metas) == "table" then
+        local name, id
+        for _i, m in ipairs(metas) do
+            if type(m) == "table" and m.property == "belongs-to-collection"
+                    and type(m._text) == "string" and m._text ~= "" then
+                name, id = m._text, m.id
+                break
+            end
+        end
+        if name then
+            local pos
+            for _i, m in ipairs(metas) do
+                if type(m) == "table" and m.property == "group-position"
+                        -- luxl drops the "#" of refines="#series": either spelling.
+                        and (id == nil or m.refines == "#" .. id or m.refines == id) then
+                    pos = seriesNum(m._text)
+                    break
+                end
+            end
+            return name, pos
         end
     end
-    if not name then return nil end
-    local pos
-    for _i, m in ipairs(metas) do
-        if type(m) == "table" and m.property == "group-position"
-                -- luxl drops the "#" of refines="#series": either spelling.
-                and (id == nil or m.refines == "#" .. id or m.refines == id) then
-            pos = seriesNum(m._text)
-            break
+    -- Calibre-Web places series information in the same leading metadata
+    -- header as rating and tags. Parse it before summaryText removes that
+    -- header, so the OPDS series-cover selector can use the book's number.
+    local raw = entry.content
+    if type(raw) == "table" and type(raw.div) == "string" then raw = raw.div end
+    if type(raw) == "string" then
+        local value = raw:match("[Ss][Ee][Rr][Ii][Ee][Ss]%s*:%s*([^<\r\n]+)")
+            or raw:match("[Ss][Ee][Rr][Ii][Ee]%s*:%s*([^<\r\n]+)")
+            or raw:match("[Rr][Ee][Ii][Hh][Ee]%s*:%s*([^<\r\n]+)")
+        if value then
+            local name, pos = value:match("^%s*(.-)%s*%[%s*([%d%.%-]+)%s*%]")
+            if name and name ~= "" then return name, seriesNum(pos) end
         end
     end
-    return name, pos
+    return nil
 end
 
 local function entryAuthor(entry)
