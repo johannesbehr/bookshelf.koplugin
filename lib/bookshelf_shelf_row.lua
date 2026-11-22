@@ -723,7 +723,11 @@ function ShelfRow.new(opts)
             -- the way a local folder does, and its badge numbers come from the
             -- record, since there are no files on disk to count (issue 452).
             local src_folder = item.source_nav and true or false
-            local nav_mode = (src_folder and item.cover_image_path) and group_mode
+            -- OPDS catalog navigation entries normally have no artwork and
+            -- remain text tiles. If the repository has attached a borrowed or
+            -- native cover, render the tile using the selected folder style
+            -- instead, so series/category tiles can display their artwork.
+            local nav_mode = item.cover_image_path and group_mode
                              or StackDisplay.TEXT
             row[#row + 1] = wrap_for_title_alignment(FolderStack:new{
                 -- ALWAYS text for a remote subcatalog, whatever the chip's
