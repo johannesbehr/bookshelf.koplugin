@@ -8582,6 +8582,9 @@ local NAV_COVER_BORROW_ITER = 200
 -- whose formats were all unsupported), and promoting it would swap a working
 -- folder for a dead tile.
 local function opdsLoneChildBook(win)
+    -- Optional convenience: keep one-book OPDS subcatalogs as folders unless
+    -- the user explicitly opts into promoting them to book tiles.
+    if not BookshelfSettings.isTrue("opds_promote_single_book") then return nil end
     if type(win) ~= "table" then return nil end
     if win.next_url then return nil end
     -- Two rows is all this needs: a second entry of any kind disqualifies the
