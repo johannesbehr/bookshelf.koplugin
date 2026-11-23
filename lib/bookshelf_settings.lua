@@ -5125,6 +5125,28 @@ end
 function Settings:_advancedSubItems()
     local items = {
         {
+            text = _("Promote single-book OPDS folders"),
+            help_text = _("When an OPDS subcatalog contains exactly one book, "
+                .. "show that book directly on the parent shelf instead of "
+                .. "keeping the subcatalog as a folder. Off by default."),
+            checked_func = function()
+                return BookshelfSettings.isTrue("opds_promote_single_book")
+            end,
+            keep_menu_open = true,
+            callback = function(touchmenu_instance)
+                BookshelfSettings.save("opds_promote_single_book",
+                    not BookshelfSettings.isTrue("opds_promote_single_book"))
+                if self._bw and self._bw._rebuild then
+                    self._bw:_rebuild()
+                    UIManager:setDirty(self._bw, "ui")
+                end
+                if touchmenu_instance and touchmenu_instance.updateItems then
+                    touchmenu_instance:updateItems()
+                end
+            end,
+            separator = true,
+        },
+        {
             text                = _("Performance tweaks"),
             sub_item_table_func = function()
                 return self:_performanceSubItems()
